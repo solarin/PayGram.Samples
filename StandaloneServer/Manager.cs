@@ -23,6 +23,8 @@ namespace StandaloneServer
 		const string LocalHttpServerPort = nameof(LocalHttpServerPort);
 		const string MyTelegramId = nameof(MyTelegramId);
 		const string PayGramToken = nameof(PayGramToken);
+		const string CertFile = nameof(CertFile);
+		const string CertPassword = nameof(CertPassword);
 
 
 		public Manager()
@@ -32,14 +34,33 @@ namespace StandaloneServer
 			botClient.OnUpdate += BotClient_OnUpdate;
 
 			// set up the httpserver where we will receive notifications from PayGram
-			httpMngr = new HttpServerManager(ConfigurationManager.AppSettings[LocalHttpServerIp],
-											int.Parse(ConfigurationManager.AppSettings[LocalHttpServerPort]));
-			httpMngr.PayGramToken = ConfigurationManager.AppSettings[PayGramToken];
+			string ip = ConfigurationManager.AppSettings[LocalHttpServerIp];
+			int port = int.Parse(ConfigurationManager.AppSettings[LocalHttpServerPort]);
+			string payGramToken = ConfigurationManager.AppSettings[PayGramToken];
+			string cert = ConfigurationManager.AppSettings[CertFile];
+			string certPassword = ConfigurationManager.AppSettings[CertPassword];
+			httpMngr = new HttpServerManager(ip, port);
+			httpMngr.PayGramToken = payGramToken;
+			httpMngr.CertificateFile = cert;
+			httpMngr.CertificatePassword = certPassword;
 			httpMngr.OnPayGramEvent += HttpMngr_OnPayGramEvent;
-
+			httpMngr.OnConfigured += HttpMngr_OnConfigured;
 			myTelegramId = int.Parse(ConfigurationManager.AppSettings[MyTelegramId]);
 			if (myTelegramId == 0)
 				throw new Exception("Specify your telegram Id, get it from @opgmbot -> Settings -> Developer");
+		}
+
+		private void HttpMngr_OnConfigured(object sender, EventArgs e)
+		{
+			Console.WriteLine("========= \r\n\r\n" +
+							"Go to https://t.me/opgmbot\r\n" +
+							"Settings -> Developer\r\n" +
+							"Set callback -> " + httpMngr.CallbackUrl + "\r\n" +
+							"and then...\r\n" +
+							"Link Bot -> the name of your bot that you used when you registered it on BotFather\r\n\r\n" +
+							"Attention: PayGram server won't be able to call your localhost/127.0.0.1/192.168.x.x IP, you must specify a public IP address" +
+							"\r\n\r\n========="
+							);
 		}
 
 		private void HttpMngr_OnPayGramEvent(object sender, PayGramEventArgs e)
@@ -107,15 +128,7 @@ namespace StandaloneServer
 			botClient.StartReceiving();
 			httpMngr.Start();
 
-			Console.WriteLine("========= \r\n\r\n" +
-				"Go to https://t.me/opgmbot\r\n" +
-				"Settings -> Developer\r\n" +
-				"Set callback -> " + httpMngr.CallbackUrl + "\r\n" +
-				"and then...\r\n" +
-				"Link Bot -> the name of your bot that you used when you registered it on BotFather\r\n\r\n" +
-				"Attention: PayGram server won't be able to call your localhost/127.0.0.1/192.168.x.x IP, you must specify a public IP address" +
-				"\r\n\r\n========="
-				);
+
 
 			string cmd = null;
 

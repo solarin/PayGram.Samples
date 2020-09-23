@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using PayGram.UserAPI;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -12,6 +13,8 @@ namespace StandaloneServer.HttpServer
 {
 	public class HttpServerManager
 	{
+		public event EventHandler OnConfigured;
+
 		/// <summary>
 		/// Triggers when there is an incoming notification from PayGram
 		/// </summary>
@@ -33,9 +36,14 @@ namespace StandaloneServer.HttpServer
 		/// This is the callback url to set at https://t.me/opgmbot Settings - Developer - Set callback url
 		/// Don't share this link with anybody else
 		/// </summary>
-		public string CallbackUrl => $"http://{BindIp}:{BindPort}/?token={PayGramToken}";
+		public string CallbackUrl => $"http{(SupportsHttps ? "s" : "")}://{BindIp}:{(SupportsHttps ? BindPort + 1 : BindPort)}/?token={PayGramToken}";
+
+		public bool SupportsHttps { get; private set; }
 
 		public bool IsStarted { get; private set; }
+		public string CertificateFile { get; internal set; }
+		public string CertificatePassword { get; internal set; }
+
 		CancellationTokenSource tokenSource;
 		bool _requestedShutdown;
 		IWebHost host;
@@ -82,6 +90,7 @@ namespace StandaloneServer.HttpServer
 				return;
 			}
 
+
 			try
 			{
 				host.Run();
@@ -108,8 +117,24 @@ namespace StandaloneServer.HttpServer
 		{
 			if (IPAddress.TryParse(BindIp, out IPAddress ipAddress) == false)
 				ipAddress = IPAddress.Loopback;
-						
+
 			op.Listen(ipAddress, BindPort, listenOptions => listenOptions.UseConnectionLogging());
+
+			// if we have a certificate, we also listen for https connections
+			FileInfo fiCertFile = null;
+			if (File.Exists(CertificateFile))
+				fiCertFile = new FileInfo(CertificateFile);
+
+			if (fiCertFile != null)
+			{
+				op.Listen(ipAddress, BindPort + 1, listenOptions =>
+				{
+					listenOptions.UseConnectionLogging();
+					listenOptions.UseHttps(fiCertFile.FullName, CertificatePassword);
+				});
+				SupportsHttps = true;
+			}
+			OnConfigured?.Invoke(this, EventArgs.Empty);
 		}
 
 		public async Task Stop()

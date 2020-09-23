@@ -12,7 +12,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="PayGram\" />
     <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PayGram\PayGram.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="test_cert.pfx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
